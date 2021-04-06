@@ -1,6 +1,9 @@
 % This script takes quaternion data from a .csv file that is exported from 
 % the Vicon Tracker software and creates matrices of euler angles, euler 
-% rates, body rates, and velocity. 
+% rates, body rates, and velocity. It also creates a tiled animation
+% playback of the flight. There is included the option to save the
+% animation as a file. The playback is resource intensive so is not capable
+% of being real time, but the saved file does produce real time footage.
 %
 % The format of the each matrix is as follows:
 % 
