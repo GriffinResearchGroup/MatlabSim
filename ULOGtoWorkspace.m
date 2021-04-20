@@ -22,3 +22,4 @@ assignin('base',name,data)
 clear name data
 end
 clear i numberOfTopics ulogOBJ msgTable
+plot(x,y)
