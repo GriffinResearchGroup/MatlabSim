@@ -75,59 +75,136 @@ clear i numberOfTopics ulogOBJ msgTable
 
 % Use empty ref_timestamp column to create array of seconds
 vehicle_local_position.ref_timestamp = double(seconds(vehicle_local_position.timestamp - vehicle_local_position.timestamp(1)));
-% Get data rate for pixhawk
-PXfr = mean(1./diff(vehicle_local_position.ref_timestamp));
 
-% Resample to highest frequency and put pixhawk coordinate system in VICON
-% coordinate system
-if VCNFrameRate > PXfr
-    [P,Q] = rat(VCNFrameRate/PXfr);
-    PXx = resample(double(vehicle_local_position.y),P,Q);
-    PXy = resample(double(vehicle_local_position.x),P,Q);
-    PXz = -resample(double(vehicle_local_position.z),P,Q);
-    VNx = velObj(:,3);
-    VNy = velObj(:,4);
-    VNz = velObj(:,5);
-    Fr = VCNFrameRate;
-else
-    [P,Q] = rat(PXfr/VCNFrameRate);
-    PXx = vehicle_local_position.y;
-    PXy = vehicle_local_position.x;
-    PXz = -vehicle_local_position.z;
-    VNx = resample(velObj(:,3),P,Q);
-    VNy = resample(velObj(:,4),P,Q);
-    VNz = resample(velObj(:,5),P,Q);
-    Fr = PXfr;
-end
-
-% Align the signals
-VNx = alignsignals(VNx,PXx);
-VNy = alignsignals(VNy,PXy);
-VNz = alignsignals(VNz,PXz);
-
+% Creating tiled layout for plots
 figure
-tl1 = tiledlayout(3,1);
-ax1 = nexttile;
-plot((0:numel(VNx)-1)/Fr,VNx);
-grid on
+tiledlayout(3,3)
+
+% plot raw data
+nexttile
+plot(velObj(:,2),velObj(:,3),'DisplayName','Vicon Data')
 hold on
-plot((0:numel(PXx)-1)/Fr,PXx);
-legend('Vicon','Pixhawk');
-xlabel('time (s)');
-ylabel('x (m)');
-ax2 = nexttile;
-plot((0:numel(VNy)-1)/Fr,VNy);
-grid on
+plot(vehicle_local_position.ref_timestamp,vehicle_local_position.y,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('X-Position (m)');
+legend
+title('Raw Data')
+
+nexttile(4)
+plot(velObj(:,2),velObj(:,4),'DisplayName','Vicon Data')
 hold on
-plot((0:numel(PXy)-1)/Fr,PXy);
-legend('Vicon','Pixhawk');
-xlabel('time (s)');
-ylabel('y (m)');
-ax3 = nexttile;
-plot((0:numel(VNz)-1)/Fr,VNz);
-grid on
+plot(vehicle_local_position.ref_timestamp,vehicle_local_position.x,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('Y-Position (m)');
+legend
+%title('Raw Data')
+
+nexttile(7)
+plot(velObj(:,2),velObj(:,5),'DisplayName','Vicon Data')
 hold on
-plot((0:numel(PXz)-1)/Fr,PXz);
-legend('Vicon','Pixhawk');
-xlabel('time (s)');
-ylabel('y (m)');
+plot(vehicle_local_position.ref_timestamp,-vehicle_local_position.z,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('Z-Position (m)');
+legend
+%title('Raw Data')
+
+% find peaks in x location data
+[Vpks,Vlocs,Vwidths,Vproms] = findpeaks(velObj(:,3),velObj(:,2));
+[Vmax,Vind] = max(Vproms);
+[Ppks,Plocs,Pwidths,Pproms] = findpeaks(vehicle_local_position.y,vehicle_local_position.ref_timestamp);
+[Pmax,Pind] = max(Pproms);
+
+% Get time and locations of highest peak prominence for each x-location signal
+Ptime = Plocs(Pind);
+Vtime = Vlocs(Vind);
+PoffsetIndex = find(vehicle_local_position.ref_timestamp == Ptime);
+VoffsetIndex = find(velObj(:,2) == Vtime);
+% adjust x, y, and z of pixhawk data to match vicon data
+% keep in mind pixhawk y is vicon x and pixhawk x is vicon y
+offsetx = velObj(VoffsetIndex,3) - vehicle_local_position.y(PoffsetIndex);
+PXx = vehicle_local_position.y + offsetx;
+% find peaks in y location data
+[Vpks,Vlocs,Vwidths,Vproms] = findpeaks(velObj(:,4),velObj(:,2));
+[Vmax,Vind] = max(Vproms);
+[Ppks,Plocs,Pwidths,Pproms] = findpeaks(vehicle_local_position.x,vehicle_local_position.ref_timestamp);
+[Pmax,Pind] = max(Pproms);
+% Get time and locations of highest peak prominence for each y-location signal
+PYtime = Plocs(Pind);
+VYtime = Vlocs(Vind);
+PoffsetIndex = find(vehicle_local_position.ref_timestamp == PYtime);
+VoffsetIndex = find(velObj(:,2) == VYtime);
+offsety = velObj(VoffsetIndex,4) - vehicle_local_position.x(PoffsetIndex);
+PXy = vehicle_local_position.x + offsety;
+% find peaks in z location data
+[Vpks,Vlocs,Vwidths,Vproms] = findpeaks(velObj(:,5),velObj(:,2));
+[Vmax,Vind] = max(Vproms);
+PXz = -vehicle_local_position.z;
+[Ppks,Plocs,Pwidths,Pproms] = findpeaks(PXz,vehicle_local_position.ref_timestamp);
+[Pmax,Pind] = max(Pproms);
+% Get time and locations of highest peak prominence for each z-location signal
+PZtime = Plocs(Pind);
+VZtime = Vlocs(Vind);
+PoffsetIndex = find(vehicle_local_position.ref_timestamp == PZtime);
+VoffsetIndex = find(velObj(:,2) == VZtime);
+offsetz = velObj(VoffsetIndex,5) - PXz(PoffsetIndex);
+PXz = PXz + offsetz;
+
+% plot position shifted data
+nexttile(2)
+plot(velObj(:,2),velObj(:,3),'DisplayName','Vicon Data')
+hold on
+plot(vehicle_local_position.ref_timestamp,PXx,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('X-Position (m)');
+legend
+title('Position Shifted')
+
+nexttile(5)
+plot(velObj(:,2),velObj(:,4),'DisplayName','Vicon Data')
+hold on
+plot(vehicle_local_position.ref_timestamp,PXy,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('Y-Position (m)');
+legend
+%title('Position Shifted')
+
+nexttile(8)
+plot(velObj(:,2),velObj(:,5),'DisplayName','Vicon Data')
+hold on
+plot(vehicle_local_position.ref_timestamp,PXz,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('Z-Position (m)');
+legend
+%title('Position Shifted')
+
+% get difference in time and shift data
+shift = Ptime - Vtime;
+vehicle_local_position.ref_timestamp = vehicle_local_position.ref_timestamp - shift;
+
+% Plot position and time shifted data
+nexttile(3)
+plot(velObj(:,2),velObj(:,3),'DisplayName','Vicon Data')
+hold on
+plot(vehicle_local_position.ref_timestamp,PXx,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('X-Position (m)');
+legend
+title('Time Shifted')
+
+nexttile(6)
+plot(velObj(:,2),velObj(:,4),'DisplayName','Vicon Data')
+hold on
+plot(vehicle_local_position.ref_timestamp,PXy,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('Y-Position (m)');
+legend
+%title('Time Shifted')
+
+nexttile(9)
+plot(velObj(:,2),velObj(:,5),'DisplayName','Vicon Data')
+hold on
+plot(vehicle_local_position.ref_timestamp,PXz,'DisplayName','Pixhawk Data')
+xlabel('Time (s)');
+ylabel('Z-Position (m)');
+legend
+%title('Time Shifted')
