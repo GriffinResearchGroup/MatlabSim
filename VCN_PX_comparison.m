@@ -5,11 +5,12 @@ clc;
 % Get VICON data formatted
 
 % Prompt user to select .csv file to work with
-disp('Select VICON data file.');
-[FileName,PathName,FilterIndex] = uigetfile('*.csv','Select Vicon Data');
+%disp('Select VICON data file.');
+%[FileName,PathName,FilterIndex] = uigetfile('*.csv','Select Vicon Data');
 % Add the directory to where this file exists
-addpath(PathName)
+%addpath(PathName)
 % Set framerate based on .csv file and calculate timestep
+FileName = 'G:\My Drive\Research\IMAGRS\Debug Quad\Test Flights\20210409\Vicon\20210409test 6.csv';
 VCNFrameRate = csvread(FileName,1,0,[1,0,1,0]);
 timestep = 1/VCNFrameRate;
 % Read in .csv file and get size of the matrix
@@ -21,7 +22,7 @@ DataN = Data(:,2:cols);
 DataN(DataN==0) = nan;
 Data = [Data(:,1) DataN];
 % Loop through matrix to add time column
-time(1) = 0;
+time = zeros(1,numFrames);
 for i = 2:numFrames
     time(i) = time(i-1) + timestep;
 end
@@ -42,6 +43,7 @@ eulObj = [Data(:,1:2) eulObj];
 eulRatesObj = [zeros(1,8); Data(2:numFrames,1:2) eulRatesObj];
 velObj = [Data(1,1:2) Data(1,7:9)/1000 0 0 0; Data(2:numFrames,1:2) Data(2:numFrames,7:9)/1000 velObj/1000];
 %calculate body rates
+bodyRatesObj = zeros(numFrames,8);
 for i=1:numFrames
     bodyRatesObj(i,1) = eulRatesObj(i,1);
     bodyRatesObj(i,2) = eulRatesObj(i,2);
@@ -54,22 +56,23 @@ bodyRatesObj(:,6:8) = rad2deg(bodyRatesObj(:,3:5));
 
 % Get pixhawk log data formatted
 % Prompt user to select .ulg file to work with
-disp('Select the Pixhawk ulg file.');
-[FileName,PathName,FilterIndex] = uigetfile('*.ulg','Select Pixhawk Data');
+%disp('Select the Pixhawk ulg file.');
+%[FileName,PathName,FilterIndex] = uigetfile('*.ulg','Select Pixhawk Data');
 % Add the directory to where this file exists
-addpath(PathName)
+%addpath(PathName)
 
+FileName = 'G:\My Drive\Research\IMAGRS\Debug Quad\Test Flights\20210409\Pixhawk\20_29_45.ulg';
 ulogOBJ = ulogreader(FileName); %Specify the ULOG file
 
 numberOfTopics = size(ulogOBJ.AvailableTopics,1);
 msgTable = readTopicMsgs(ulogOBJ);
 
 for i = 1:numberOfTopics
-name = msgTable.TopicNames(i);
-data = msgTable.TopicMessages(i);
-data = data{1};
-assignin('base',name,data)
-clear name data
+    name = msgTable.TopicNames(i);
+    data = msgTable.TopicMessages(i);
+    data = data{1};
+    assignin('base',name,data)
+    clear name data
 end
 clear i numberOfTopics ulogOBJ msgTable
 
