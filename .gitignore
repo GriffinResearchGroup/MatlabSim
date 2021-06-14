@@ -1,2 +1,14 @@
 # Ignore matlab autosaved files
 *.asv
+
+# Ignore cad files
+*.STL
+*.ac
+*.blend
+*.blend1
+
+# Ignore image files
+*.png
+*.gif
+*.png
+*.jpg
